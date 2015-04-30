@@ -42,9 +42,9 @@ class Network(object):
         process.
 
         :param training_data: List of tuples, with input and target output
-        :param epochs: Number of epochs to train used in mini-batch (int)
-        :param batch_size: Size of the batch used in mini-batch (int) 
-        :param eta: learning rate
+        :param int epochs: Number of epochs to train used in mini-batch
+        :param int batch_size: Size of the batch used in mini-batch
+        :param float eta: learning rate
         :param test_data: Data used for cross testing (optional)
         """
 
@@ -72,7 +72,7 @@ class Network(object):
         using backpropagation to given mini-batch.
 
         :param batch: Mini-batch which will be updated, List of tuples (x,y)
-        :param eta: Learning rate
+        :param int eta: Learning rate
 
         """
         nabla_bias = [np.zeros_like(b.shape) for b in self.biases]
