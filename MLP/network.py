@@ -33,7 +33,8 @@ class Network(object):
             a = sigmoid_vec(np.dot(w, a) + b)
             return a
 
-    def stochastic_gradient_descent(self, training_data, epochs, batch_size,
+    def stochastic_gradient_descent(self, training_data, epochs,
+                                    batch_size,
                                     eta, test_data=None):
         """
         Training the network using mini-batch stochastic gradient descent.
@@ -49,22 +50,19 @@ class Network(object):
         :param float eta: learning rate
         :param test_data: Data used for cross testing (optional)
         """
-
         if test_data:
             n_test = len(test_data)
         n = len(training_data)
         for j in xrange(epochs):
-            # Shuffle the input data
             random.shuffle(training_data)
-            # Create mini batches out the training data with given size size
-            mini_batches = [training_data[k:k + batch_size] for k in
-                            xrange(0, n, batch_size)]
-            # Update all batches
+            mini_batches = [
+                training_data[k:k + batch_size]
+                for k in xrange(0, n, batch_size)]
             for mini_batch in mini_batches:
                 self.update_mini_batch(mini_batch, eta)
             if test_data:
-                print "Epoch {0}: {1} / {2}".format(j, self.evaluate(
-                    test_data), n_test)
+                print "Epoch {0}: {1} / {2}".format(
+                    j, self.evaluate(test_data), n_test)
             else:
                 print "Epoch {0} complete".format(j)
 
@@ -79,20 +77,14 @@ class Network(object):
         """
         nabla_bias = [np.zeros(b.shape) for b in self.biases]
         nabla_weights = [np.zeros(w.shape) for w in self.weights]
-        # Calculate gradient for weights and biases
         for x, y in batch:
-            # Calculate now the partial derivatives using backpropagation
-            delta_nabla_weights, delta_nabla_biases = self.back_propagation(
-                x, y)
-            nabla_bias = [nb + dnb for nb, dnb in zip(nabla_bias,
-                                                      delta_nabla_biases)]
-            nabla_weights = [nw + dnw for nw, dnw in zip(nabla_weights,
-                                                         delta_nabla_weights)]
-        # Update weights and biases described by the gradient method
-        self.weights = [w - (eta / len(batch)) * nw for w, nw in zip(
-            self.weights, nabla_weights)]
-        self.biases = [b - (eta / len(batch) * nb for b, nb in zip(
-            self.biases, nabla_bias))]
+            delta_nabla_b, delta_nabla_w = self.back_propagation(x, y)
+            nabla_bias = [nb + dnb for nb, dnb in zip(nabla_bias, delta_nabla_b)]
+            nabla_weights = [nw + dnw for nw, dnw in zip(nabla_weights, delta_nabla_w)]
+        self.weights = [w - (eta / len(batch)) * nw
+                        for w, nw in zip(self.weights, nabla_weights)]
+        self.biases = [b - (eta / len(batch)) * nb
+                       for b, nb in zip(self.biases, nabla_bias)]
 
     def evaluate(self, test_data):
         """
@@ -102,7 +94,8 @@ class Network(object):
         :param test_data: test data
         :return: number of correctly classified inputs (int)
         """
-        test_results = [np.argmax(self.feed_forward(x), y) for (x, y) in test_data]
+        test_results = [(np.argmax(self.feed_forward(x)), y)
+                        for (x, y) in test_data]
         return sum(int(x == y) for (x, y) in test_results)
 
     def back_propagation(self, x, y):
@@ -119,9 +112,9 @@ class Network(object):
         # List to store vectors layer by layer
         zs = []
         for b, w in zip(self.biases, self.weights):
-            z = np.dot(w, activation) + b
+            z = np.dot(w, activation)+b
             zs.append(z)
-            activation = sigmoid_vec(activation)
+            activation = sigmoid_vec(z)
             activations.append(activation)
         # backward propagation steps
         # output error: delta vector
