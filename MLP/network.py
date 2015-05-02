@@ -14,10 +14,12 @@ class Network(object):
         # Random biases and weights, Gaussian distribution [0,1]
         # Create bias matrix
         self.biases = [np.random.randn(y, 1) for y in sizes[1:]]
+        # print self.biases[0][0][0] list of nd.array of nd.array
         # Create weight matrix w_jk, kth neuron from 2nd layer to jth neuron
         #  in 3rd layer
         self.weights = [np.random.randn(y, x)
                         for x, y in zip(sizes[:-1], sizes[1:])]
+        # print self.weights[0][0][0] list of nd.array of nd.array
 
     def feed_forward(self, a):
         """
