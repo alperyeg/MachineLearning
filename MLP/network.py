@@ -29,9 +29,8 @@ class Network(object):
         
         """
         for b, w in zip(self.biases, self.weights):
-            # TODO: Make this without vectorized function
-            a = sigmoid_vec(np.dot(w, a) + b)
-            return a
+            a = sigmoid_vec(np.dot(w, a)+b)
+        return a
 
     def stochastic_gradient_descent(self, training_data, epochs,
                                     batch_size,
@@ -126,8 +125,8 @@ class Network(object):
         # back-propagate errors
         for l in xrange(2, self.num_layer):
             z = zs[-l]
-            delta = np.dot(self.weights[-l + 1].transpose(), delta) * \
-                    sigmoid_prime_vec(z)
+            spv = sigmoid_prime_vec(z)
+            delta = np.dot(self.weights[-l + 1].transpose(), delta) * spv
             nabla_bias[-l] = delta
             nabla_weights[-l] = np.dot(delta, activations[-l - 1].transpose())
         return nabla_bias, nabla_weights
@@ -157,11 +156,7 @@ def sigmoid_prime(z):
     sigma = sigmoid(z)
     return sigma * (1 - sigma)
 
+
 # Define vectorized function, which returns a numpy array
 sigmoid_vec = np.vectorize(sigmoid)
 sigmoid_prime_vec = np.vectorize(sigmoid_prime)
-
-
-# TODO
-def vectorized(x):
-    pass
