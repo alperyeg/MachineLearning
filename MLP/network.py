@@ -13,10 +13,10 @@ class Network(object):
         self.num_layer = len(sizes)
         # Random biases and weights, Gaussian distribution [0,1]
         # Create bias matrix
-        self.biases = [np.random.rand(y, 1) for y in sizes[1:]]
+        self.biases = [np.random.randn(y, 1) for y in sizes[1:]]
         # Create weight matrix w_jk, kth neuron from 2nd layer to jth neuron
         #  in 3rd layer
-        self.weights = [np.random.rand(y, x)
+        self.weights = [np.random.randn(y, x)
                         for x, y in zip(sizes[:-1], sizes[1:])]
 
     def feed_forward(self, a):
@@ -56,13 +56,13 @@ class Network(object):
             random.shuffle(training_data)
             # Create mini batches out the training data with given size size
             mini_batches = [training_data[k:k + batch_size] for k in
-                            range(0, n, batch_size)]
+                            xrange(0, n, batch_size)]
             # Update all batches
             for mini_batch in mini_batches:
                 self.update_mini_batch(mini_batch, eta)
             if test_data:
-                print "Epoch {0}: {1}".format(j, self.evaluate(test_data),
-                                              n_test)
+                print "Epoch {0}: {1} / {2}".format(j, self.evaluate(
+                    test_data), n_test)
             else:
                 print "Epoch {0} complete".format(j)
 
@@ -75,8 +75,8 @@ class Network(object):
         :param int eta: Learning rate
 
         """
-        nabla_bias = [np.zeros_like(b.shape) for b in self.biases]
-        nabla_weights = [np.zeros_like(w.shape) for w in self.weights]
+        nabla_bias = [np.zeros(b.shape) for b in self.biases]
+        nabla_weights = [np.zeros(w.shape) for w in self.weights]
         # Calculate gradient for weights and biases
         for x, y in batch:
             # Calculate now the partial derivatives using backpropagation
@@ -108,8 +108,8 @@ class Network(object):
         Returns tuple (nabla_b, nabla_w) as gradient of cost function `C` (
         `C_x`). `nabla_w` and `nabla_b` are calculated layer-wise.
         """
-        nabla_bias = [np.zeros_like(b.shape) for b in self.biases]
-        nabla_weights = [np.zeros_like(w.shape) for w in self.weights]
+        nabla_bias = [np.zeros(b.shape) for b in self.biases]
+        nabla_weights = [np.zeros(w.shape) for w in self.weights]
         # Calculate feed-forward
         activation = x
         # Create list to store activations layer by layer
