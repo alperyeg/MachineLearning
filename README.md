@@ -1,3 +1,2 @@
-# NeuralNetworks
-
-Toolkit for Neural Networks 
+# Machine Learning
+Toolkit and Examples for Machine Learning  
