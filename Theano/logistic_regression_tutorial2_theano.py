@@ -17,8 +17,9 @@ specifically:
 """
 import gzip
 import os
-
+import timeit
 import cPickle
+import sys
 import theano
 import theano.tensor as T
 import numpy as np
@@ -102,7 +103,7 @@ class LogisticRegression(object):
         # LP[n-1,y[n-1]]] and T.mean(LP[T.arange(y.shape[0]),y]) is
         # the mean (across minibatch examples) of the elements in v,
         # i.e., the mean log-likelihood across the minibatch.
-        return -T.mean(T.log(self.p_y_given_x))
+        return -T.mean(T.log(self.p_y_given_x)[T.arange(y.shape[0]), y])
 
     def errors(self, y):
         """
@@ -137,7 +138,7 @@ def load_data(dataset):
     data_dir, data_file = os.path.split(dataset)
     if data_dir == "" and not os.path.isfile(dataset):
         new_path = os.path.join(
-            os.path.split(__file__)[0], "..", "data", dataset)
+            os.path.split(__file__)[0], "..", dataset)
         if os.path.isfile(new_path) or data_file == dataset_name:
             dataset = new_path
     # if dataset not found download it
@@ -227,7 +228,7 @@ def sgd_optimization_mnist(learning_rate=0.13, n_epochs=1000,
     # data, presented as rasterized images
     x = T.matrix(name='x')
     # labels, presented as 1D vector of [int] labels
-    y = T.matrix(name='y')
+    y = T.ivector(name='y')
 
     # construct the logistic regression class
     # Each MNIST image has size 28*28
@@ -242,19 +243,19 @@ def sgd_optimization_mnist(learning_rate=0.13, n_epochs=1000,
                                  outputs=classifier.errors(y),
                                  givens={x: test_set_x[
                                             index * batch_size: (index + 1) *
-                                                                batch_size],
+                                            batch_size],
                                          y: test_set_y[
                                             index * batch_size: (index + 1) *
-                                                                batch_size]})
+                                            batch_size]})
     validate_model = theano.function(inputs=[index],
                                      outputs=classifier.errors(y),
                                      givens={
                                          x: valid_set_x[
                                             index * batch_size: (index + 1) *
-                                                                batch_size],
+                                            batch_size],
                                          y: valid_set_y[
                                             index * batch_size: (index + 1) *
-                                                                batch_size]})
+                                            batch_size]})
     # calculate gradient cost wrt to W and b (= theta)
     g_W = theano.grad(cost=cost, wrt=classifier.W)
     g_b = theano.grad(cost=cost, wrt=classifier.b)
@@ -267,12 +268,93 @@ def sgd_optimization_mnist(learning_rate=0.13, n_epochs=1000,
     train_model = theano.function(inputs=[index],
                                   outputs=cost,
                                   updates=updates,
-                                     givens={
+                                  givens={
                                          x: train_set_x[
                                             index * batch_size: (index + 1) *
-                                                                batch_size],
+                                            batch_size],
                                          y: train_set_y[
                                             index * batch_size: (index + 1) *
-                                                                batch_size]})
+                                            batch_size]})
 
     print '... training the model'
+    # early-stopping parameters
+    # look as this many examples regardless
+    patience = 5000
+    # wait this much longer when a new best is found
+    patience_increase = 2
+    # a relative improvement of this much is  considered significant
+    improvement_threshold = 0.995
+    # go through this many minibatche before checking the model on the
+    # validation set; in this case we check every epoch
+    validation_frequency = min(n_train_batches, patience / 2)
+    best_validation_loss = np.inf
+    test_score = 0.
+    start_time = timeit.default_timer()
+
+    done_looping = False
+    epoch = 0
+    while (epoch < n_epochs) and not done_looping:
+        epoch += 1
+        for minibatch_index in xrange(n_train_batches):
+            minibatch_avg_cost = train_model(minibatch_index)
+            iter = (epoch - 1) * n_train_batches + minibatch_index
+            if (iter + 1) % validation_frequency == 0:
+                # compute zero-one loss on validation set
+                validation_losses = [validate_model(i)
+                                     for i in xrange(n_valid_batches)]
+                this_validation_loss = np.mean(validation_losses)
+                print('epoch %i, minibatch %i/%i, validation error %f %%' %
+                      (epoch, minibatch_index + 1, n_train_batches,
+                       this_validation_loss * 100.))
+                # if we got the best validation score until now
+                if this_validation_loss < best_validation_loss:
+                    # improve patience if loss improvement is good enough
+                    if this_validation_loss < best_validation_loss * \
+                            improvement_threshold:
+                        patience = max(patience, iter * patience_increase)
+
+                    best_validation_loss = this_validation_loss
+
+                    # test it on the test set
+                    test_losses = [test_model(i)
+                                   for i in xrange(n_test_batches)]
+                    test_score = np.mean(test_losses)
+
+                    # save the best model
+                    with open('best_model.pkl', 'w') as f:
+                        cPickle.dump(classifier, f)
+            if patience <= iter:
+                done_looping = True
+
+    end_time = timeit.default_timer()
+    print('Optimization complete with best validation score of %f %%,'
+          'with test performance %f %%' % (best_validation_loss * 100.,
+                                           test_score * 100.))
+    print('The code run for %d epochs, with %f epochs/sec' % (epoch,
+                                                              1. * epoch /
+                                                              (end_time - start_time)))
+    print >> sys.stderr, ('The code for file ' + os.path.split(__file__)[1] +
+                          'ran for %.1fs' % (end_time - start_time))
+
+
+def predict():
+    """
+    An example of how to load a trained model and use it to predict labels.
+
+    """
+    classifier = cPickle.load(open('best_model.pkl'))
+    # compile a predictor function
+    predict_model = theano.function(inputs=[classifier.inpt],
+                                    outputs=classifier.y_pred)
+    # We can test it on some examples from test test
+    dataset = 'mnist.pkl.gz'
+    datasets = load_data(dataset)
+    test_set_x, test_set_y = datasets[2]
+    test_set_x = test_set_x.get_value()
+
+    predicted_values = predict_model(test_set_x[:10])
+    print ("Predicted values for the first 10 examples in test set:")
+    print predicted_values
+
+if __name__ == '__main__':
+    sgd_optimization_mnist()
