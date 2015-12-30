@@ -15,6 +15,10 @@ The model's prediction y_pred is the class whose probability is maximal,
 specifically:
 .. math :: y_pred = argmax_i(P (Y = i| x, W, b))
 """
+import gzip
+import os
+
+import cPickle
 import theano
 import theano.tensor as T
 import numpy as np
@@ -120,3 +124,155 @@ class LogisticRegression(object):
             return T.mean(T.neq(self.y_pred, y))
         else:
             raise NotImplementedError()
+
+
+def load_data(dataset):
+    """
+    Loads the dataset
+    :type dataset: string
+    :param dataset: path to dataset, mnist dataset
+    :return:
+    """
+    dataset_name = 'mnist.pkl.gz'
+    data_dir, data_file = os.path.split(dataset)
+    if data_dir == "" and not os.path.isfile(dataset):
+        new_path = os.path.join(
+            os.path.split(__file__)[0], "..", "data", dataset)
+        if os.path.isfile(new_path) or data_file == dataset_name:
+            dataset = new_path
+    # if dataset not found download it
+    if (not os.path.isfile(dataset)) and data_file == dataset_name:
+        import urllib
+        origin = ('http://www.iro.umontreal.ca/~lisa/deep/data/mnist/mnist.pkl.gz')
+        print 'Downloading data from %s' % origin
+        urllib.urlretrieve(origin, dataset)
+    # load dataset
+    f = gzip.open(dataset, 'rb')
+    train_set, validate_set, test_set = cPickle.load(f)
+    f.close()
+    # train_set, valid_set, test_set format: tuple(input, target)
+    # input is an numpy.ndarray of 2 dimensions (a matrix)
+    # which row's correspond to an example. target is a
+    # numpy.ndarray of 1 dimensions (vector)) that have the same length as
+    # the number of rows in the input. It should give the target to the example
+    # with the same index in the input.
+
+    def shared_dataset(data_xy, borrow=True):
+        """
+        Function that loads the dataset into theano shared variables
+
+        Easier to load into GPU and to work with it.
+        Since copying data into the GPU is slow, copying a minibatch everytime
+        is needed (the default behaviour if the data is not in a
+        shared variable) would lead to a large decrease in performance.
+
+        :param data_xy: whole mnist train, test or validate data set
+        :param borrow: invokes theanos parameter borrow
+        :return: list of tuples (data, label) of theano arrays with train,
+        test and validate data sets
+        """
+        # split tuple into data (data_x) and label (data_y)
+        data_x, data_y = data_xy
+        # now create theano arrays
+        shared_x = theano.shared(np.asarray(data_x, dtype=T.config.floatX),
+                                 borrow=borrow)
+        shared_y = theano.shared(np.asarray(data_y, dtype=T.config.floatX),
+                                 borrow=borrow)
+        # When storing to GPU it should be floats.
+        # But during computation the labes are needed as ints.
+        # That's why they are casted.
+        return shared_x, T.cast(shared_y, dtype='int32')
+
+    test_set_x, test_set_y = shared_dataset(test_set)
+    valid_set_x, valid_set_y = shared_dataset(validate_set)
+    train_set_x, train_set_y = shared_dataset(train_set)
+
+    rval = [(train_set_x, train_set_y), (valid_set_x, valid_set_y),
+            (test_set_x, test_set_y)]
+    return rval
+
+
+def sgd_optimization_mnist(learning_rate=0.13, n_epochs=1000,
+                           dataset='mnist.pkl.gz', batch_size=600):
+    """
+    Stochastic gradient descent  of log-linear model
+
+    :type learning_rate: float
+    :param learning_rate: learning rate for the sgd
+    :type n_epochs: int
+    :param n_epochs: number of epochs used
+    :type dataset: string
+    :param dataset: path of dataset
+    :type batch_size: int
+    :param batch_size: number of batches to be used
+    :return:
+
+    """
+    datasets = load_data(dataset)
+    train_set_x, train_set_y = datasets[0]
+    valid_set_x, valid_set_y = datasets[1]
+    test_set_x, test_set_y = datasets[2]
+
+    # compute number of minibatches for training, validation and testing
+    n_train_batches = train_set_x.get_value(borrow=True).shape[0] / batch_size
+    n_valid_batches = valid_set_x.get_value(borrow=True).shape[0] / batch_size
+    n_test_batches = test_set_x.get_value(borrow=True).shape[0] / batch_size
+
+    print '... building model'
+
+    # allocate symbolic variables for the data
+    index = T.lscalar()    # index to a [mini]batch
+
+    # generate symbolic variables for input (x and y represent a minibatch)
+    # data, presented as rasterized images
+    x = T.matrix(name='x')
+    # labels, presented as 1D vector of [int] labels
+    y = T.matrix(name='y')
+
+    # construct the logistic regression class
+    # Each MNIST image has size 28*28
+    classifier = LogisticRegression(inpt=x, n_in=28 * 28, n_out=10)
+    # the cost we minimize during training is the negative log likelihood of
+    # the model in symbolic format
+    cost = classifier.negative_likelihood(y)
+
+    # compiling a Theano function that computes the mistakes that are made by
+    # the model on a minibatch
+    test_model = theano.function(inputs=[index],
+                                 outputs=classifier.errors(y),
+                                 givens={x: test_set_x[
+                                            index * batch_size: (index + 1) *
+                                                                batch_size],
+                                         y: test_set_y[
+                                            index * batch_size: (index + 1) *
+                                                                batch_size]})
+    validate_model = theano.function(inputs=[index],
+                                     outputs=classifier.errors(y),
+                                     givens={
+                                         x: valid_set_x[
+                                            index * batch_size: (index + 1) *
+                                                                batch_size],
+                                         y: valid_set_y[
+                                            index * batch_size: (index + 1) *
+                                                                batch_size]})
+    # calculate gradient cost wrt to W and b (= theta)
+    g_W = theano.grad(cost=cost, wrt=classifier.W)
+    g_b = theano.grad(cost=cost, wrt=classifier.b)
+
+    # specify how to update the parameters of the model as a list of
+    # (variable, update expression) pairs.
+    updates = [(classifier.W, classifier.W - learning_rate * g_W),
+               (classifier.b, classifier.b - learning_rate * g_b)]
+
+    train_model = theano.function(inputs=[index],
+                                  outputs=cost,
+                                  updates=updates,
+                                     givens={
+                                         x: train_set_x[
+                                            index * batch_size: (index + 1) *
+                                                                batch_size],
+                                         y: train_set_y[
+                                            index * batch_size: (index + 1) *
+                                                                batch_size]})
+
+    print '... training the model'
