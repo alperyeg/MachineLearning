@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib
+import pandas as pd
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 
@@ -30,12 +31,11 @@ class Perceptron(object):
         return self
 
     def net_input(self, X):
-        return np.dot(X, self.w_[1:] + self.w_[0])
+        return np.dot(X, self.w_[1:]) + self.w_[0]
 
     def predict(self, X):
         return np.where(self.net_input(X) >= 0.0, 1, -1)
 
-import pandas as pd
 df = pd.read_csv('https://archive.ics.uci.edu/ml/machine-learning-databases/iris/iris.data', header=None)
 
 # choose setose and versicolor

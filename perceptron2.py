@@ -71,7 +71,7 @@ class Perceptron(object):
         :return:
         """
         # wTx + w0, w0 is theta and w[1:] are the weights without theta
-        return np.dot(X, self.w_[1:] + self.w_[0])
+        return np.dot(X, self.w_[1:]) + self.w_[0]
 
     def predict(self, X):
         """
@@ -125,7 +125,7 @@ def plot_decision_regions(X, y, classifier, resolution=0.22):
     plt.contourf(xx1, xx2, z, alpha=0.4, cmap=cmap)
     plt.xlim(xx1.min(), xx1.max())
     plt.ylim(xx2.min(), xx2.max())
-    #plot class samples
+    # plot class samples
     for idx, cl in enumerate(np.unique(y)):
         plt.scatter(x=X[y == cl, 0], y=X[y == cl, 1], alpha=0.8, cmap=cmap(
                 idx), marker=markers[idx], label=cl)
