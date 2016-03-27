@@ -96,9 +96,9 @@ def plot_learning_rate_sse(X, y):
     ada2 = AdalineGD(eta=0.0001, epochs=10)
     ada2.fit(X, y)
 
-    ax[1].plot(range(1, len(ada2.cost_) + 1), np.log10(ada2.cost_), marker='o')
+    ax[1].plot(range(1, len(ada2.cost_) + 1), ada2.cost_, marker='o')
     ax[1].set_xlabel('Epochs')
-    ax[1].set_ylabel('log(Sum-squared-error)')
+    ax[1].set_ylabel('Sum-squared-error')
     ax[1].set_title('Adaline - Learning rate 0.0001')
     plt.show()
 
