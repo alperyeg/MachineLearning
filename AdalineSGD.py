@@ -18,12 +18,10 @@ class AdalineSGD(object):
         :param w_: numpy.array
             shape = [n_features]
             Weights after fitting
-        :param errors_: list
-            Number of miscalculations in every epoch
         :param shuffle : bool (default True)
             If True, shuffles training data every epoch to prevent cycles
         :param random_state: int (default int)
-            Set random state for shuffling and initialzing the weights
+            Set random state for shuffling and initializing the weights
         """
         self.eta = eta
         self.epochs = epochs
@@ -32,6 +30,7 @@ class AdalineSGD(object):
         if random_state:
             np.random.seed(random_state)
         self.w_ = None
+        self.cost_ = []
 
     def fit(self, X, y):
         """
@@ -45,7 +44,6 @@ class AdalineSGD(object):
         :return: self: object
         """
         self._initialize_weights(X.shape[1])
-        self.cost_ = []
 
         for i in range(self.epochs):
             if self.shuffle:
@@ -76,7 +74,8 @@ class AdalineSGD(object):
         self.w_ = np.zeros(1 + m)
         self.w_initialized = True
 
-    def _shuffle(self, X, y):
+    @staticmethod
+    def _shuffle(X, y):
         r = np.random.permutation(len(y))
         return X[r], y[r]
 
