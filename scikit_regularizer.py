@@ -2,12 +2,11 @@ from sklearn import datasets
 from sklearn.linear_model import LogisticRegression
 from sklearn.cross_validation import train_test_split
 from sklearn.preprocessing import StandardScaler
-from decision_regions import plot_decision_regions_
 import numpy as np
 import matplotlib.pyplot as plt
 
 
-# load iris dataset
+# load iris data-set
 iris = datasets.load_iris()
 # last two features of iris dataset
 X = iris.data[:, [2, 3]]
@@ -24,18 +23,17 @@ sc.fit(X_train)
 X_train_std = sc.transform(X_train)
 X_test_std = sc.transform(X_test)
 
-
-lr = LogisticRegression(C=1000.0, random_state=0)
-lr.fit(X_train_std, y_train)
-
-# Print probablitiy of the classes
-print lr.predict_proba(X_test_std[0,:])
-
-X_combined_std = np.vstack((X_train_std, X_test_std))
-y_combined = np.hstack((y_train, y_test))
-plot_decision_regions_(X=X_combined_std, y=y_combined,
-                       classifier=lr, test_idx=range(105, 150))
-plt.xlabel('petal length [standardized]')
-plt.ylabel('petal width [standardized]')
+weights, params = [], []
+for c in np.arange(-5, 5):
+    lr = LogisticRegression(C=10 ** c, random_state=0)
+    lr.fit(X_train_std, y_train)
+    weights.append(lr.coef_[1])
+    params.append(10 ** c)
+weights = np.array(weights)
+plt.plot(params, weights[:, 0], label='petal length')
+plt.plot(params, weights[:, 1], label='petal width', linestyle='--')
+plt.ylabel('weight coefficient')
+plt.xlabel('C')
 plt.legend(loc='upper left')
+plt.xscale('log')
 plt.show()
