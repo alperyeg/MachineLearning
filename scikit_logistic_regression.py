@@ -20,7 +20,7 @@ X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3,
 sc = StandardScaler()
 # Estimate mean and std using fit method
 sc.fit(X_train)
-# Standarize training and test data using mean and std via transform method
+# Standardize training and test data using mean and std via transform method
 X_train_std = sc.transform(X_train)
 X_test_std = sc.transform(X_test)
 
