@@ -82,7 +82,7 @@ class NeuralNetMLP(object):
         """Initialize weights with small random numbers."""
         w1 = np.random.uniform(-1.0, 1.0,
                                size=self.n_hidden * (self.n_features + 1))
-        w1 = w1.reshape(self.n_hidden, self.n_features +1)
+        w1 = w1.reshape(self.n_hidden, self.n_features + 1)
         w2 = np.random.uniform(-1.0, 1.0,
                                size=self.n_output * (self.n_hidden + 1))
         w2 = w2.reshape(self.n_output, self.n_hidden + 1)
@@ -191,7 +191,7 @@ class NeuralNetMLP(object):
         Compute L1-regularization cost.
         """
         return (lambda_ / 2.0) * (
-            np.abs(w1[:, 1:] ** 2).sum() + np.abs(w2[:, 1:] ** 2).sum())
+            np.abs(w1[:, 1:]).sum() + np.abs(w2[:, 1:]).sum())
 
     def _get_cost(self, y_enc, output, w1, w2):
         """
@@ -265,7 +265,7 @@ class NeuralNetMLP(object):
         z2 = self._add_bias_unit(z2, how='row')
         sigma2 = w2.T.dot(sigma3) * self._sigmoid_gradient(z2)
         sigma2 = sigma2[1:, :]
-        grad1  = sigma2.dot(a1)
+        grad1 = sigma2.dot(a1)
         grad2 = sigma3.dot(a2.T)
 
         # regularize
@@ -289,7 +289,7 @@ class NeuralNetMLP(object):
           Predicted class labels.
 
         """
-        if len(X.shape != 2):
+        if len(X.shape) != 2:
             raise AttributeError('X must be a [n_samples, n_features] array.\n'
                                  'Use X[:,None] for 1-feature classification,'
                                  '\nor X[[i]] for 1-sample classification')
@@ -326,13 +326,13 @@ class NeuralNetMLP(object):
 
         for i in range(self.epochs):
             # adaptive learning rate
-            self.eta /= (1 + self.decrease_const)
+            self.eta /= (1 + self.decrease_const * i)
             if print_progress:
                 sys.stderr.write('\rEpoch: {}/{}'.format(i + 1, self.epochs))
                 sys.stderr.flush()
 
             if self.shuffle:
-                idx = np.random.permutation((y_data.shape[0]))
+                idx = np.random.permutation(y_data.shape[0])
                 X_data, y_enc = X_data[idx], y_enc[:, idx]
 
             mini = np.array_split(range(y_data.shape[0]), self.minibatches)
