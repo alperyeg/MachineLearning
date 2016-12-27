@@ -269,8 +269,8 @@ class NeuralNetMLP(object):
         grad2 = sigma3.dot(a2.T)
 
         # regularize
-        grad1[:, 1:] += (w1[:, 1] * (self.l1 + self.l2))
-        grad2[:, 1:] += (w2[:, 1] * (self.l1 + self.l2))
+        grad1[:, 1:] += (w1[:, 1:] * (self.l1 + self.l2))
+        grad2[:, 1:] += (w2[:, 1:] * (self.l1 + self.l2))
 
         return grad1, grad2
 
@@ -332,10 +332,10 @@ class NeuralNetMLP(object):
                 sys.stderr.flush()
 
             if self.shuffle:
-                idx = np.random.permutation((y_data.shpe[0]))
+                idx = np.random.permutation((y_data.shape[0]))
                 X_data, y_enc = X_data[idx], y_enc[:, idx]
 
-            mini = np.array(range(y_data.shape[0]), self.minibatches)
+            mini = np.array_split(range(y_data.shape[0]), self.minibatches)
             for idx in mini:
                 # feedforward
                 a1, z2, a2, z3, a3 = self._feedforward(X_data[idx], self.w1,
