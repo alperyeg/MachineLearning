@@ -35,9 +35,62 @@ nn = NeuralNetMLP(n_output=10, n_features=X_train.shape[1], n_hidden=50,
                   random_state=1)
 nn.fit(X_train, y_train, print_progress=True)
 
-plt.plot(range(len(nn.cost_)), nn.cost_)
-plt.ylim([0, 2000])
-plt.ylabel('cost')
-plt.xlabel('Epochs * 50')
+
+def plot_cost(net):
+    """
+    Plot costs pro epoch.
+    Plot every 50th step to account for 50 mini-batches (50 x 1000 epochs).
+    """
+    plt.plot(range(len(net.cost_)), net.cost_)
+    plt.ylim([0, 2000])
+    plt.ylabel('cost')
+    plt.xlabel('Epochs * 50')
+    plt.tight_layout()
+    plt.show()
+
+
+def plot_cost_batches(net):
+    """
+    Plots a smooth version of the cost function by averaging over the
+    mini-batch interval.
+    """
+    batches = np.array_split(range(len(net.cost_)), 1000)
+    cost_ary = np.array(net.cost_)
+    cost_avgs = [np.mean(cost_ary[i]) for i in batches]
+    plt.plot(range(len(cost_avgs)), cost_avgs, color='red')
+    plt.ylim([0, 2000])
+    plt.ylabel('cost')
+    plt.xlabel('Epochs * 50')
+    plt.tight_layout()
+    plt.show()
+
+
+# Plot costs
+plot_cost(nn)
+plot_cost_batches(nn)
+
+# evaluate the performance
+y_train_pred = nn.predict(X_train)
+acc = np.sum(y_train == y_train_pred, axis=0) / float(X_train.shape[0])
+print('Training accuracy: {:.2%}'.format(acc * 100))
+
+# evaluate the performance on test set
+y_test_pred = nn.predict(X_test)
+acc = np.sum(y_test == y_test_pred, axis=0) / float(X_test.shape[0])
+print('Training accuracy: {:.2%}'.format(acc * 100))
+
+miscl_img = X_test[y_test != y_test_pred][:25]
+correct_lab = y_test[y_test != y_test_pred][:25]
+miscl_lab = y_test_pred[y_test != y_test_pred][:25]
+
+fig, ax = plt.subplots(nrows=5, ncols=5, sharex=True, sharey=True)
+ax = ax.flatten()
+for i in range(25):
+    img = miscl_img[i].reshape(28, 28)
+    ax[i].imshow(img, cmap='Greys', interpolation='nearest')
+    ax[i].set_title('{0}) t: {1} p: {2}'.format(i+1, correct_lab[i], miscl_lab[
+        i]))
+ax[0].set_xticks([])
+ax[0].set_yticks([])
 plt.tight_layout()
 plt.show()
