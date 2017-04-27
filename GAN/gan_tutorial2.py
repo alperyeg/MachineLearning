@@ -1,3 +1,8 @@
+"""
+Training a generative adversarial network to sample from a
+Gaussian distribution, 1-D normal distribution
+"""
+
 from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import unicode_literals
@@ -52,7 +57,7 @@ class GeneratorDistribution(object):
 
 def linear(inpt, output_dim, scope=None, stddev=1.0):
     """
-    Creates a multilayer perceptron
+   Linear transformation
 
     :param inpt: data
     :param output_dim: hidden layers
@@ -91,7 +96,7 @@ def discriminator(inpt, h_dim, minibatch_layer=True):
     # without the minibatch layer, the discriminator needs an additional layer
     # to have enough capacity to separate the two distributions correctly
     if minibatch_layer:
-        h2 = minibatch(h1)
+        h2 = run_minibatch(h1)
     else:
         h2 = tf.tanh(linear(h1, h_dim * 2, scope='d2'))
 
@@ -99,7 +104,7 @@ def discriminator(inpt, h_dim, minibatch_layer=True):
     return h3
 
 
-def minibatch(inpt, num_kernels=5, kernel_dim=3):
+def run_minibatch(inpt, num_kernels=5, kernel_dim=3):
     """
     * Take the output of some intermediate layer of the discriminator.
     * Multiply it by a 3D tensor to produce a matrix (of size num_kernels x 
@@ -119,10 +124,10 @@ def minibatch(inpt, num_kernels=5, kernel_dim=3):
     """
     x = linear(inpt, num_kernels * kernel_dim, scope='minibatch', stddev=0.02)
     activation = tf.reshape(x, (-1, num_kernels, kernel_dim))
-    diffs = tf.expand_dims(activation, 3) - tf.expand_dims(tf.transpose(activation, [1, 2, 0]), 0)
-    abs_diffs = tf.reduce_sum(tf.abs(diffs), 2)
-    minibatch_features = tf.reduce_sum(tf.exp(-abs_diffs), 2)
-    return tf.concat(1, [input, minibatch_features])
+    diffs = tf.expand_dims(activation, axis=3) - tf.expand_dims(tf.transpose(activation, [1, 2, 0]), axis=0)
+    abs_diffs = tf.reduce_sum(tf.abs(diffs), axis=2)
+    minibatch_features = tf.reduce_sum(tf.exp(-abs_diffs), axis=2)
+    return tf.concat(values=[inpt, minibatch_features], axis=1)
 
 
 def optimizer(loss, var_list, initial_learning_rate):
@@ -141,7 +146,6 @@ def optimizer(loss, var_list, initial_learning_rate):
         decay,
         staircase=True
     )
-    # TODO try MomentumOptimizer
     optimizer_ = tf.train.GradientDescentOptimizer(learning_rate).minimize(
         loss,
         global_step=batch,
@@ -150,9 +154,28 @@ def optimizer(loss, var_list, initial_learning_rate):
     return optimizer_
 
 
+def momentum_optimizer(loss, var_list, initial_learning_rate):
+    # Apply exponential decay to the learning rate, staircase to use integer
+    #  division in a stepwise (=staircase) fashion
+    decay = 0.95
+    num_decay_steps = 150
+    batch = tf.Variable(0)
+    learning_rate = tf.train.exponential_decay(
+        initial_learning_rate,
+        batch,
+        num_decay_steps,
+        decay,
+        staircase=True)
+    optimizer_ = tf.train.MomentumOptimizer(learning_rate=learning_rate,
+                                            momentum=0.6).minimize(loss,
+                                                                   global_step=batch,
+                                                                   var_list=var_list)
+    return optimizer_
+
+
 class GAN(object):
-    def __init__(self, data, gen, num_steps, batch_size, minibatch,
-                 log_every, anim_path):
+    def __init__(self, data, gen, num_steps, batch_size, minibatch, log_every,
+                 hidden_size=4, learning_rate=0.03, anim_path="./"):
         """
         
         :param data: tensor data
@@ -160,7 +183,7 @@ class GAN(object):
         :param num_steps: int
         :param batch_size: int
         :param minibatch: bool 
-        :param log_every: bool
+        :param log_every: int
         :param anim_path: string
         """
         self.data = data
@@ -169,18 +192,29 @@ class GAN(object):
         self.batch_size = batch_size
         self.minibatch = minibatch
         self.log_every = log_every
-        self.mlp_hidden_size = 4
+        self.mlp_hidden_size = hidden_size
         self.anim_path = anim_path
         self.anim_frames = []
-        self.learning_rate = 0.03
+        self.learning_rate = learning_rate
 
         # can use a higher learning rate when not using the minibatch layer
         if self.minibatch:
-            self.learning_rate = 0.005
+            self.learning_rate = self.learning_rate / 100.0     # 0.005
+            print(
+                'minibatch active setting smaller learning rate of: {}'.format(
+                    self.learning_rate))
 
         self._create_model()
 
     def _create_model(self):
+        """
+        Creates the model
+         
+        Does the pre-training and optimization steps, creates also the 
+        Generative and Discriminator Network.  
+        
+        """
+        # TODO in optimizing steps try MomentumOptimizer
         with tf.variable_scope('D_pre'):
             self.pre_input = tf.placeholder(tf.float32,
                                             shape=(self.batch_size, 1))
@@ -191,17 +225,19 @@ class GAN(object):
             self.pre_loss = tf.reduce_mean(tf.square(D_pre - self.pre_labels))
             self.pre_opt = optimizer(self.pre_loss, None, self.learning_rate)
 
-            # This defines the generator network - it takes samples from a noise
-            # distribution as input, and passes them through an MLP.
+        # This defines the generator network - it takes samples from a
+        # noise distribution as input, and passes them through an MLP.
         with tf.variable_scope('Gen'):
             self.z = tf.placeholder(tf.float32, shape=(self.batch_size, 1))
             self.G = generator(self.z, self.mlp_hidden_size)
 
-            # The discriminator tries to tell the difference between samples from the
-            # true data distribution (self.x) and the generated samples (self.z).
-            #
-            # Here we create two copies of the discriminator network (that share parameters),
-            # as you cannot use the same network with different inputs in TensorFlow.
+        # The discriminator tries to tell the difference between samples from
+        # the true data distribution (self.x) and the generated
+        # samples (self.z).
+        #
+        # Here we create two copies of the discriminator network
+        # (that share parameters), as you cannot use the same network with
+        # different inputs in TensorFlow.
         with tf.variable_scope('Disc') as scope:
             self.x = tf.placeholder(tf.float32, shape=(self.batch_size, 1))
             self.D1 = discriminator(self.x, self.mlp_hidden_size,
@@ -325,6 +361,7 @@ class GAN(object):
         plt.xlabel('Data values')
         plt.ylabel('Probability density')
         plt.legend()
+        plt.savefig('fig1.png', format='png')
         plt.show()
 
     def _save_animation(self):
@@ -375,17 +412,20 @@ class GAN(object):
             frames=len(self.anim_frames),
             blit=True
         )
-        anim.save(self.anim_path, fps=30, extra_args=['-vcodec', 'libx264'])
+        Writer = animation.writers['ffmpeg']
+        writer = Writer(fps=30, bitrate=1800)
+        # anim.save(self.anim_path, fps=30, extra_args=['-vcodec', 'libx264'])
+        anim.save(self.anim_path, writer=writer)
 
 
-def main(args):
+def main(**kwargs):
     model = GAN(DataDistribution(),
                 GeneratorDistribution(range_=8),
-                num_steps=args.num_steps,
-                batch_size=args.batch_size,
-                minibatch=args.minibatch,
-                log_every=args.log_every,
-                anim_path=args.anim
+                num_steps=kwargs['num_steps'],
+                batch_size=kwargs['batch_size'],
+                minibatch=kwargs['minibatch'],
+                log_every=kwargs['log_every'],
+                anim_path=kwargs['anim_path']
                 )
     model.train()
 
@@ -405,4 +445,10 @@ def parse_args():
     return parser.parse_args()
 
 if __name__ == '__main__':
-    main(parse_args())
+    num_steps = 1200
+    batch_size = 12
+    minibatch = False
+    log_every = 10
+    anim_path = ""
+    main(num_steps=num_steps, batch_size=batch_size, minibatch=minibatch,
+         log_every=log_every, anim_path=anim_path)
