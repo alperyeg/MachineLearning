@@ -130,7 +130,26 @@ def run_minibatch(inpt, num_kernels=5, kernel_dim=3):
     return tf.concat(values=[inpt, minibatch_features], axis=1)
 
 
-def optimizer(loss, var_list, initial_learning_rate):
+def optimizer(loss, var_list, initial_learning_rate, name='GradientDescent',
+              **kwargs):
+    """
+    
+    :param loss:  tensor containing the value to minimize.
+    :param var_list:  Optional list or tuple of Variable objects to update 
+                      to minimize loss. 
+    :param initial_learning_rate: tensor or a floating point value.
+    :param name: str 
+    :param kwargs: Additional keywords
+    :return: An Operation that updates the variables in var_list. 
+    """
+    if name == 'GradientDescent':
+        return _gradient_descent_optimizer(loss, var_list,
+                                           initial_learning_rate)
+    elif name == 'MomentumOptimizer':
+        return _momentum_optimizer(loss, var_list, initial_learning_rate)
+
+
+def _gradient_descent_optimizer(loss, var_list, initial_learning_rate):
     """
     GradientDescentOptimizer with exponential learning rate decay
 
@@ -154,8 +173,12 @@ def optimizer(loss, var_list, initial_learning_rate):
     return optimizer_
 
 
-def momentum_optimizer(loss, var_list, initial_learning_rate):
-    # Apply exponential decay to the learning rate, staircase to use integer
+def _momentum_optimizer(loss, var_list, initial_learning_rate):
+    """
+    Momentum Optimizer with exponential learning rate decay
+    
+    """
+    # Apply exponential decay to the learning rate; staircase to use integer
     #  division in a stepwise (=staircase) fashion
     decay = 0.95
     num_decay_steps = 150
@@ -177,7 +200,6 @@ class GAN(object):
     def __init__(self, data, gen, num_steps, batch_size, minibatch, log_every,
                  hidden_size=4, learning_rate=0.03, anim_path="./"):
         """
-        
         :param data: tensor data
         :param gen: tensor generator net
         :param num_steps: int
@@ -246,12 +268,12 @@ class GAN(object):
             self.D2 = discriminator(self.G, self.mlp_hidden_size,
                                     self.minibatch)
 
-            # Define the loss for discriminator and generator networks
-            # and create optimizers for both
+        # Define the loss for discriminator and generator networks
+        # and create optimizers for both
         self.loss_d = tf.reduce_mean(-tf.log(self.D1) - tf.log(1 - self.D2))
         self.loss_g = tf.reduce_mean(-tf.log(self.D2))
 
-        self.d_pre_params = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,
+        self.   d_pre_params = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,
                                               scope='D_pre')
         self.d_params = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,
                                           scope='Disc')
@@ -280,10 +302,12 @@ class GAN(object):
                     self.pre_labels: np.reshape(labels, (self.batch_size, 1))
                 })
             self.weightsD = session.run(self.d_pre_params)
+            tf.summary.histogram('weightsD', self.weightsD[0])
 
             # copy weights from pre-training over to new D network
             for i, v in enumerate(self.d_params):
-                session.run(v.assign(self.weightsD[i]))
+                session.run(tf.assign(v, self.weightsD[i]))
+                # session.run(v.assign(self.weightsD[i]))
 
             for step in range(self.num_steps):
                 # update discriminator
@@ -310,6 +334,9 @@ class GAN(object):
                 self._save_animation()
             else:
                 self._plot_distributions(session)
+            merged = tf.summary.merge_all()
+            writer = tf.summary.FileWriter('logs', session.graph)
+            writer.close()
 
     def _samples(self, session, num_points=10000, num_bins=100):
         """
