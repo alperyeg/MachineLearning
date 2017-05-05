@@ -64,7 +64,6 @@ cover
 ehthumbs.db
 Icon?
 Thumbs.db
-# Things specific to this project #
 ###################################]]
 ### Python template
 # Byte-compiled / optimized / DLL files
@@ -152,4 +151,9 @@ ENV/
 # Rope project settings
 .ropeproject
 
+# Things specific to this project #
+##################################
 MLP/*ubyte
+GAN/logs/
+*.png
+*.mp4
