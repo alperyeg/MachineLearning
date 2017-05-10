@@ -273,7 +273,7 @@ class GAN(object):
         self.loss_d = tf.reduce_mean(-tf.log(self.D1) - tf.log(1 - self.D2))
         self.loss_g = tf.reduce_mean(-tf.log(self.D2))
 
-        self.   d_pre_params = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,
+        self.d_pre_params = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,
                                               scope='D_pre')
         self.d_params = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,
                                           scope='Disc')
