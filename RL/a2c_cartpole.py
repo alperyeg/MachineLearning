@@ -24,7 +24,7 @@ from torch.distributions import Categorical
 # define constant
 GAMMA = 0.99
 EPSILON = 0.99
-EPISODES = 2
+EPISODES = 1000
 LOG_INTERVAL = 10
 SEED = 0
 SavedAction = namedtuple('SavedAction', ['log_prob', 'value'])
