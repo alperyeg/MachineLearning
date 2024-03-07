@@ -8,17 +8,15 @@ import torch.nn.functional as F
 import torch.optim as optim
 import random
 import seaborn as sns
-import time
 
 from collections import namedtuple
-from IPython import display
 from torch.distributions import Categorical
 
-# sns.set(style="white",
-#         rc={'xtick.bottom': True, 'ytick.left': True})
-# sns.set_color_codes("dark")
-# sns.set_context("paper", font_scale=1.3,
-#                 rc={"lines.linewidth": 1.8, "grid.linewidth": 0.1})
+sns.set(style="white",
+        rc={'xtick.bottom': True, 'ytick.left': True})
+sns.set_color_codes("dark")
+sns.set_context("paper", font_scale=1.3,
+                rc={"lines.linewidth": 1.8, "grid.linewidth": 0.1})
 
 
 # define constant
@@ -194,7 +192,4 @@ if __name__ == '__main__':
             txt = ax.text(25, 30, f'{text}', bbox={'facecolor': 'white'})
             fig.canvas.draw()
             fig.canvas.flush_events()
-            display.display(plt.gcf())
-            display.clear_output(wait=True)
-            # time.sleep(0.1)
             txt.set_visible(False)
